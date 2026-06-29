@@ -1,133 +1,77 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useASLRecognition } from '../hooks/useASLRecognition';
 
 export default function Camera() {
   const videoRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
-  const { prediction, sentence } = useASLRecognition(videoRef, isActive);
+  const [permissionState, setPermissionState] = useState('pending');
+  const { clearSentence, prediction, sentence } = useASLRecognition(videoRef, isActive);
 
   useEffect(() => {
-    // Request camera permission on mount
+    let stream;
+
     const requestCamera = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setPermissionState('unsupported');
+        return;
+      }
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          setHasPermission(true);
         }
+        setPermissionState('granted');
       } catch (error) {
-        console.error('Camera access denied:', error);
-        setHasPermission(false);
+        setPermissionState('denied');
       }
     };
 
     requestCamera();
 
     return () => {
-      // Cleanup stream
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject;
-        const tracks = stream.getTracks();
-        tracks.forEach(track => track.stop());
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
 
-  const toggleRecognition = () => {
-    setIsActive(!isActive);
-  };
+  const canUseCamera = permissionState === 'granted';
 
   return (
-    <div>
-      <h2>Camera - ASL Recognition</h2>
-      <p>Point your camera at your hand to recognize ASL letters (demo supports A, L, V).</p>
-
-      {!hasPermission && (
-        <p style={{ color: 'red' }}>Camera permission required. Please allow camera access.</p>
-      )}
-
-      <div style={{ position: 'relative', width: '100%', maxWidth: 640, margin: '20px 0' }}>
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          style={{
-            width: '100%',
-            height: 'auto',
-            borderRadius: 8,
-            background: '#000'
-          }}
-        />
-        {isActive && (
-          <div style={{
-            position: 'absolute',
-            top: 10,
-            left: 10,
-            background: 'rgba(0,0,0,0.7)',
-            color: 'white',
-            padding: '5px 10px',
-            borderRadius: 4,
-            fontSize: '18px',
-            fontWeight: 'bold'
-          }}>
-            Detected: {prediction}
-          </div>
-        )}
+    <section className="tool-page" aria-labelledby="camera-title">
+      <div className="page-heading">
+        <p className="eyebrow">Live recognition</p>
+        <h1 id="camera-title">Camera</h1>
+        <p>Point your hand at the camera to test the current A, L, and V recognition demo.</p>
       </div>
 
-      <div style={{ marginBottom: 20 }}>
-        <button
-          onClick={toggleRecognition}
-          disabled={!hasPermission}
-          style={{
-            padding: '10px 20px',
-            fontSize: '16px',
-            background: isActive ? '#ff4444' : '#44aa44',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer'
-          }}
-        >
-          {isActive ? 'Stop Recognition' : 'Start ASL Recognition'}
-        </button>
-      </div>
-
-      <div style={{ marginTop: 20 }}>
-        <h3>Recognized Text:</h3>
-        <div style={{
-          minHeight: 50,
-          padding: 10,
-          border: '1px solid #ccc',
-          borderRadius: 4,
-          background: '#f9f9f9',
-          fontSize: '18px',
-          wordWrap: 'break-word'
-        }}>
-          {sentence || 'Start recognition to see text here...'}
+      <div className="camera-layout">
+        <div className="camera-panel">
+          <video ref={videoRef} autoPlay playsInline muted aria-label="Camera preview" />
+          {isActive && <span className="detected-badge">Detected: {prediction}</span>}
         </div>
-        <button
-          onClick={() => setSentence('')}
-          style={{
-            marginTop: 10,
-            padding: '5px 10px',
-            background: '#666',
-            color: 'white',
-            border: 'none',
-            borderRadius: 4,
-            cursor: 'pointer'
-          }}
-        >
-          Clear Text
-        </button>
-      </div>
 
-      <div style={{ marginTop: 20, fontSize: '14px', color: '#666' }}>
-        <p><strong>Note:</strong> This is an MVP demo using rule-based recognition for letters A, L, V. For full alphabet recognition, a trained ML model is needed.</p>
-        <p>To train a model: Download ASL Alphabet dataset from Kaggle, extract MediaPipe landmarks, train a Keras model, and convert to TensorFlow.js.</p>
+        <aside className="recognition-panel" aria-live="polite">
+          <h2>Recognized text</h2>
+          <div className="sentence-box">{sentence || 'Start recognition to build text here.'}</div>
+          <div className="button-row">
+            <button type="button" onClick={() => setIsActive((active) => !active)} disabled={!canUseCamera}>
+              {isActive ? 'Stop recognition' : 'Start recognition'}
+            </button>
+            <button type="button" className="secondary-button" onClick={clearSentence} disabled={!sentence}>
+              Clear text
+            </button>
+          </div>
+          {permissionState === 'denied' && (
+            <p className="notice notice--error">Camera permission is blocked. Allow camera access to test recognition.</p>
+          )}
+          {permissionState === 'unsupported' && (
+            <p className="notice notice--error">This browser does not support camera access.</p>
+          )}
+          {permissionState === 'pending' && <p className="notice">Waiting for camera permission...</p>}
+        </aside>
       </div>
-    </div>
+    </section>
   );
 }

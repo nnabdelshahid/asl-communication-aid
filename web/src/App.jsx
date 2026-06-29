@@ -1,23 +1,29 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
-import Home from './pages/Home'
-import Camera from './pages/Camera'
-import Avatar from './pages/Avatar'
-import Settings from './pages/Settings'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, NavLink } from 'react-router-dom';
+import Home from './pages/Home';
+import Camera from './pages/Camera';
+import Avatar from './pages/Avatar';
+import Settings from './pages/Settings';
 
 export default function App() {
+  const basename = window.location.pathname.startsWith('/asl-communication-aid') ? '/asl-communication-aid' : '/';
+
   return (
-    <Router basename="/asl-communication-aid/">
-      <div style={{ fontFamily: 'system-ui, sans-serif', padding: 20 }}>
-        <header style={{ marginBottom: 20 }}>
-          <h1>ASL Communication Aid</h1>
-          <nav style={{ display: 'flex', gap: 12 }}>
-            <Link to="/">Home</Link>
-            <Link to="/camera">Camera</Link>
-            <Link to="/avatar">Avatar</Link>
-            <Link to="/settings">Settings</Link>
+    <Router basename={basename}>
+      <div className="app-shell">
+        <header className="site-header">
+          <Link className="brand" to="/">
+            <span>ASL</span>
+            Communication Aid
+          </Link>
+          <nav aria-label="Primary navigation">
+            <NavLink to="/">Home</NavLink>
+            <NavLink to="/camera">Camera</NavLink>
+            <NavLink to="/avatar">Avatar</NavLink>
+            <NavLink to="/settings">Settings</NavLink>
           </nav>
         </header>
+
         <main>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -26,10 +32,11 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
-        <footer style={{ marginTop: 40, color: '#666' }}>
-          <small>Deployment: GitHub Pages — Demo will appear here after merge</small>
+
+        <footer>
+          <span>Demo recognition supports A, L, and V while the full ML model is trained.</span>
         </footer>
       </div>
     </Router>
-  )
+  );
 }

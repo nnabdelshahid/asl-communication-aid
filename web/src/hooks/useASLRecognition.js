@@ -114,5 +114,10 @@ export const useASLRecognition = (videoRef, isActive) => {
     };
   }, [isActive]);
 
-  return { prediction, sentence };
+  const clearSentence = () => {
+    setSentence('');
+    lastPredictionRef.current = '';
+  };
+
+  return { clearSentence, prediction, sentence };
 };
