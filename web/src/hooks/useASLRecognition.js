@@ -5,12 +5,15 @@ import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 export const useASLRecognition = (videoRef, isActive) => {
   const [prediction, setPrediction] = useState('None');
   const [sentence, setSentence] = useState('');
+  const [detectorState, setDetectorState] = useState('loading');
   const modelRef = useRef(null);
   const detectorRef = useRef(null);
   const lastPredictionRef = useRef('');
   const labels = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'space', 'delete', 'nothing'];
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadModels = async () => {
       try {
         // For MVP, we'll use a simple rule-based classifier for a few letters
@@ -24,11 +27,19 @@ export const useASLRecognition = (videoRef, isActive) => {
           numHands: 1,
           runningMode: 'VIDEO'
         });
+        if (!cancelled) setDetectorState('ready');
       } catch (error) {
         console.error('Error loading ASL recognition models:', error);
+        if (!cancelled) setDetectorState('error');
       }
     };
     loadModels();
+
+    return () => {
+      cancelled = true;
+      detectorRef.current?.close();
+      detectorRef.current = null;
+    };
   }, []);
 
   // Simple rule-based classifier for demo (can recognize A, L, V)
@@ -64,7 +75,7 @@ export const useASLRecognition = (videoRef, isActive) => {
   };
 
   useEffect(() => {
-    if (!isActive || !videoRef.current || !detectorRef.current) return;
+    if (!isActive || detectorState !== 'ready' || !videoRef.current || !detectorRef.current) return;
 
     let animationId;
     const predictLoop = async () => {
@@ -112,12 +123,12 @@ export const useASLRecognition = (videoRef, isActive) => {
     return () => {
       if (animationId) cancelAnimationFrame(animationId);
     };
-  }, [isActive]);
+  }, [detectorState, isActive, videoRef]);
 
   const clearSentence = () => {
     setSentence('');
     lastPredictionRef.current = '';
   };
 
-  return { clearSentence, prediction, sentence };
+  return { clearSentence, detectorState, prediction, sentence };
 };

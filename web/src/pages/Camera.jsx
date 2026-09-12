@@ -5,7 +5,7 @@ export default function Camera() {
   const videoRef = useRef(null);
   const [isActive, setIsActive] = useState(false);
   const [permissionState, setPermissionState] = useState('pending');
-  const { clearSentence, prediction, sentence } = useASLRecognition(videoRef, isActive);
+  const { clearSentence, detectorState, prediction, sentence } = useASLRecognition(videoRef, isActive);
 
   useEffect(() => {
     let stream;
@@ -23,6 +23,7 @@ export default function Camera() {
         }
         setPermissionState('granted');
       } catch (error) {
+        setIsActive(false);
         setPermissionState('denied');
       }
     };
@@ -37,6 +38,7 @@ export default function Camera() {
   }, []);
 
   const canUseCamera = permissionState === 'granted';
+  const canStartRecognition = canUseCamera && detectorState === 'ready';
 
   return (
     <section className="tool-page" aria-labelledby="camera-title">
@@ -49,14 +51,14 @@ export default function Camera() {
       <div className="camera-layout">
         <div className="camera-panel">
           <video ref={videoRef} autoPlay playsInline muted aria-label="Camera preview" />
-          {isActive && <span className="detected-badge">Detected: {prediction}</span>}
+          {isActive && <span className="detected-badge" role="status">Detected: {prediction}</span>}
         </div>
 
         <aside className="recognition-panel" aria-live="polite">
           <h2>Recognized text</h2>
           <div className="sentence-box">{sentence || 'Start recognition to build text here.'}</div>
           <div className="button-row">
-            <button type="button" onClick={() => setIsActive((active) => !active)} disabled={!canUseCamera}>
+            <button type="button" onClick={() => setIsActive((active) => !active)} disabled={!isActive && !canStartRecognition}>
               {isActive ? 'Stop recognition' : 'Start recognition'}
             </button>
             <button type="button" className="secondary-button" onClick={clearSentence} disabled={!sentence}>
@@ -64,12 +66,25 @@ export default function Camera() {
             </button>
           </div>
           {permissionState === 'denied' && (
-            <p className="notice notice--error">Camera permission is blocked. Allow camera access to test recognition.</p>
+            <div className="notice notice--error">
+              <p>Camera permission is blocked. Allow camera access to test recognition.</p>
+              <button type="button" className="secondary-button" onClick={() => window.location.reload()}>
+                Try camera permission again
+              </button>
+            </div>
           )}
           {permissionState === 'unsupported' && (
             <p className="notice notice--error">This browser does not support camera access.</p>
           )}
           {permissionState === 'pending' && <p className="notice">Waiting for camera permission...</p>}
+          {canUseCamera && detectorState === 'loading' && (
+            <p className="notice" role="status">Loading local hand recognition...</p>
+          )}
+          {canUseCamera && detectorState === 'error' && (
+            <p className="notice notice--error" role="alert">
+              Local hand recognition could not load. Check your connection and reload the page.
+            </p>
+          )}
         </aside>
       </div>
     </section>
